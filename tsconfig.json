@@ -1,27 +1,13 @@
 {
   "extends": "plasmo/templates/tsconfig.base",
-  "exclude": [
-    "node_modules"
-  ],
-  "include": [
-    ".plasmo/index.d.ts",
-    "./**/*.ts",
-    "./**/*.vue"
-  ],
+  "exclude": ["node_modules"],
+  "include": [".plasmo/index.d.ts", "./**/*.ts", "./**/*.vue"],
   "compilerOptions": {
     "paths": {
-      "~*": [
-        "./*"
-      ]
+      "~*": ["./*"]
     },
-    "types": [
-      "vue"
-    ],
-    "lib": [
-      "ES2015",
-      "DOM",
-      "DOM.Iterable"
-    ],
+    "types": ["vue"],
+    "lib": ["ESNext", "DOM", "DOM.Iterable"],
     "baseUrl": "."
   }
 }

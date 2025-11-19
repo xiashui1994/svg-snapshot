@@ -6,15 +6,20 @@
     </div>
 
     <div class="capture-section">
-      <button class="capture-btn primary" @click="capture('captureViewport')">
+      <button
+        class="capture-btn primary"
+        @click="createCapture('captureViewport')">
         <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
-          <path d="M2 4.5A2.5 2.5 0 014.5 2h7A2.5 2.5 0 0114 4.5v7a2.5 2.5 0 01-2.5 2.5h-7A2.5 2.5 0 012 11.5v-7z"/>
+          <path
+            d="M2 4.5A2.5 2.5 0 014.5 2h7A2.5 2.5 0 0114 4.5v7a2.5 2.5 0 01-2.5 2.5h-7A2.5 2.5 0 012 11.5v-7z" />
         </svg>
         Capture Viewport
       </button>
-      <button class="capture-btn secondary" @click="capture('captureArea')">
+      <button
+        class="capture-btn secondary"
+        @click="createCapture('captureArea')">
         <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
-          <path d="M4 1h8v2H4V1zm0 4h2v8H4V5zm4 0h2v8H8V5zm4 0h2v8h-2V5z"/>
+          <path d="M4 1h8v2H4V1zm0 4h2v8H4V5zm4 0h2v8H8V5zm4 0h2v8h-2V5z" />
         </svg>
         Capture Area
       </button>
@@ -26,28 +31,42 @@
       <div class="option-group">
         <h3>Output Options</h3>
         <label class="option">
-          <input type="radio" name="target" value="download" v-model="settings.target" />
+          <input
+            type="radio"
+            name="target"
+            value="download"
+            v-model="settings.target" />
           <span class="option-content">
             <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
-              <path d="M8 1l3 3h-2v4h-2V4H5l3-3zm-6 9v2h14v-2H2z"/>
+              <path d="M8 1l3 3h-2v4h-2V4H5l3-3zm-6 9v2h14v-2H2z" />
             </svg>
             Download SVG
           </span>
         </label>
         <label class="option">
-          <input type="radio" name="target" value="tab" v-model="settings.target" />
+          <input
+            type="radio"
+            name="target"
+            value="tab"
+            v-model="settings.target" />
           <span class="option-content">
             <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
-              <path d="M2 2.5A2.5 2.5 0 014.5 0h7A2.5 2.5 0 0114 2.5v11a.5.5 0 01-.5.5h-11a.5.5 0 01-.5-.5v-11z"/>
+              <path
+                d="M2 2.5A2.5 2.5 0 014.5 0h7A2.5 2.5 0 0114 2.5v11a.5.5 0 01-.5.5h-11a.5.5 0 01-.5-.5v-11z" />
             </svg>
             Open in new tab
           </span>
         </label>
         <label class="option">
-          <input type="radio" name="target" value="clipboard" v-model="settings.target" />
+          <input
+            type="radio"
+            name="target"
+            value="clipboard"
+            v-model="settings.target" />
           <span class="option-content">
             <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
-              <path d="M6 2h4v12H6V2zm2 0h4v1H8V2zm0 4h4v1H8V6zm0 4h4v1H8v-1z"/>
+              <path
+                d="M6 2h4v12H6V2zm2 0h4v1H8V2zm0 4h4v1H8V6zm0 4h4v1H8v-1z" />
             </svg>
             Copy to clipboard
           </span>
@@ -82,10 +101,11 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, reactive } from 'vue'
-import type { CaptureArea, Settings, Target } from './lib/shared'
-import { applyDefaults, SETTINGS_KEYS } from './lib/shared'
-import { logErrors } from './lib/util'
+import { onMounted, reactive, watch } from "vue"
+
+import type { CaptureArea, Settings } from "./lib/shared"
+import { applyDefaults, SETTINGS_KEYS } from "./lib/shared"
+import { getStorage, setStorage } from "./lib/storage"
 
 // Reactive settings object
 const settings = reactive<Required<Settings>>({
@@ -93,82 +113,62 @@ const settings = reactive<Required<Settings>>({
   minifySvg: false,
   prettyPrintSvg: true,
   keepLinks: true,
-  target: 'download'
+  target: "download"
 })
 
 // Load settings from storage
 onMounted(async () => {
   try {
-    const stored = await chrome.storage.sync.get(SETTINGS_KEYS)
+    // Get all settings - Storage supports array of keys
+    const stored = {} as any
+    for (const key of SETTINGS_KEYS) {
+      stored[key] = await getStorage(key)
+    }
     const loadedSettings = applyDefaults(stored as Settings)
 
     // Update reactive settings
     Object.assign(settings, loadedSettings)
   } catch (error) {
-    console.error('Failed to load settings:', error)
+    console.error("Failed to load settings:", error)
   }
-
-  // Sync changes to storage
-  setupStorageSync()
 })
 
 // Sync settings changes to storage
-const setupStorageSync = () => {
-  // Watch for changes and save to storage
-  // Since we're using reactive, we need to watch each property
-  const originalSettings = { ...settings }
-
-  // Simple approach: check periodically or on user actions
-  // Better approach would be to use a watcher library, but keeping it simple
-}
-
-// Capture function
-const createCaptureButtonHandler =
-  (area: CaptureArea): (() => void) =>
-  async () => {
+watch(
+  settings,
+  async (newSettings) => {
     try {
-      console.log('Executing content script in tab')
-      const [activeTab] = await chrome.tabs.query({ active: true, currentWindow: true })
-      console.log('activeTab', activeTab)
-      if (!activeTab?.id) {
-        return
+      // Save each setting individually for better granularity
+      for (const [key, value] of Object.entries(newSettings)) {
+        await setStorage(key, value)
       }
-
-      const started = new Promise<any>((resolve, reject) => {
-        const listener = (message: any, sender: any) => {
-          if (message.method === 'started' && sender.tab?.id === activeTab.id) {
-            chrome.runtime.onMessage.removeListener(listener)
-            resolve([{ payload: { area } }])
-          }
-        }
-        chrome.runtime.onMessage.addListener(listener)
-        setTimeout(() => {
-          chrome.runtime.onMessage.removeListener(listener)
-          reject(new Error('Timeout waiting for capture to start'))
-        }, 10000)
-      })
-
-      await chrome.tabs.executeScript(activeTab.id, {
-        file: '/src/content.js'
-      })
-
-      console.log('Waiting for content page to start capturing')
-      await started
-      console.log('Received started message, sending capture message')
-      await chrome.tabs.sendMessage(activeTab.id, {
-        method: 'capture',
-        payload: {
-          area
-        }
-      })
-      window.close()
     } catch (error) {
-      console.error(error)
-      alert((error as Error).message)
+      console.error("Failed to save settings:", error)
     }
-  }
+  },
+  { deep: true }
+)
 
-const capture = createCaptureButtonHandler
+const createCapture = async (area: CaptureArea): Promise<void> => {
+  try {
+    const [activeTab] = await chrome.tabs.query({
+      active: true,
+      currentWindow: true
+    })
+    if (!activeTab?.id) return
+
+    chrome.tabs.sendMessage(activeTab.id, {
+      method: "capture",
+      payload: {
+        area
+      }
+    })
+    window.close()
+  } catch (error) {
+    console.error(error)
+    alert((error as Error).message)
+  }
+}
 </script>
 
 <style scoped>
@@ -179,12 +179,14 @@ const capture = createCaptureButtonHandler
 :host {
   width: 420px;
   min-height: 520px;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+    "Helvetica Neue", Arial, sans-serif;
   color-scheme: light dark;
   display: block;
 }
 
-html, body {
+html,
+body {
   width: 420px;
   margin: 0;
   padding: 0;
@@ -333,7 +335,7 @@ html, body {
   }
 }
 
-.option input[type='radio'] {
+.option input[type="radio"] {
   margin: 0;
   cursor: pointer;
 }
@@ -366,7 +368,7 @@ html, body {
   }
 }
 
-.toggle input[type='checkbox'] {
+.toggle input[type="checkbox"] {
   margin: 0;
   cursor: pointer;
 }
@@ -380,16 +382,16 @@ html, body {
   transition: background 0.2s ease;
 }
 
-.toggle input[type='checkbox'] {
+.toggle input[type="checkbox"] {
   display: none;
 }
 
-.toggle input[type='checkbox']:checked + .toggle-switch {
+.toggle input[type="checkbox"]:checked + .toggle-switch {
   background: #4f46e5;
 }
 
 .toggle-switch::after {
-  content: '';
+  content: "";
   position: absolute;
   top: 2px;
   left: 2px;
@@ -400,7 +402,7 @@ html, body {
   transition: transform 0.2s ease;
 }
 
-.toggle input[type='checkbox']:checked + .toggle-switch::after {
+.toggle input[type="checkbox"]:checked + .toggle-switch::after {
   transform: translateX(16px);
 }
 

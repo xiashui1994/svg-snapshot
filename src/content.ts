@@ -1,195 +1,207 @@
-import delay from 'delay'
-import { documentToSVG } from 'dom-to-svg'
-import { saveAs } from 'file-saver'
-import prettyBytes from 'pretty-bytes'
-import formatXML from 'xml-formatter'
+import delay from "delay"
+import { documentToSVG, inlineResources } from "dom2svg"
+import { saveAs } from "file-saver"
+import type { PlasmoCSConfig } from "plasmo"
+import prettyBytes from "pretty-bytes"
+import formatXML from "xml-formatter"
 
-import { minifySvg } from './lib/minify'
-import { applyDefaults, SETTINGS_KEYS } from './lib/shared'
-import type { CaptureArea, Settings } from './lib/shared'
-import { AbortError, svgNamespace, once } from './lib/util'
+import { minifySvg } from "./lib/minify"
+import { applyDefaults, SETTINGS_KEYS } from "./lib/shared"
+import type { CaptureArea, Settings } from "./lib/shared"
+import { getStorage } from "./lib/storage"
+import { AbortError, insertCrossOrigin, svgNamespace } from "./lib/util"
 
-async function main(): Promise<void> {
-	console.log('Content script running')
-	const captureMessage = once(chrome.runtime.onMessage, (message: any) => message.method === 'capture')
-	await chrome.runtime.sendMessage({ method: 'started' })
-	try {
-		const [
-			{
-				payload: { area },
-			},
-		] = await captureMessage
-		await capture(area)
-	} catch (error) {
-		if ((error as any)?.name === 'AbortError') {
-			return
-		}
-		console.error(error)
-		const errorMessage = String((error as Error).message)
-		alert(
-			`An error happened while capturing the page: ${errorMessage}\nCheck the developer console for more information.`
-		)
-	} finally {
-		await chrome.runtime.sendMessage({ method: 'finished' })
-	}
+export const config: PlasmoCSConfig = {
+  matches: ["<all_urls>"],
+  run_at: "document_idle",
+  all_frames: false
 }
 
-/**
- * Captures the DOM as the user requested and downloads the result.
- */
+chrome.runtime.onMessage.addListener((message, _, sendResponse) => {
+  if (message.method === "capture") {
+    capture(message.payload.area)
+      .then(() => sendResponse({ ok: true }))
+      .catch((err) => sendResponse({ error: err.message }))
+    return true
+  }
+})
+
 async function capture(area: CaptureArea): Promise<void> {
-	console.log('Capturing', area)
+  insertCrossOrigin()
+  await chrome.runtime.sendMessage({ method: "started" })
 
-	const captureArea = area === 'captureArea' ? await letUserSelectCaptureArea() : undefined
+  try {
+    const captureRect =
+      area === "captureArea" ? await selectCaptureArea() : undefined
 
-	document.documentElement.style.cursor = 'wait'
-	try {
-		// Give chrome chance to render
-		await delay(0)
+    document.documentElement.style.cursor = "wait"
+    await delay(0)
 
-		const settings = applyDefaults((await chrome.storage.sync.get(SETTINGS_KEYS)) as Settings)
+    const stored = {} as any
+    for (const key of SETTINGS_KEYS) {
+      stored[key] = await getStorage(key)
+    }
+    const settings = applyDefaults(stored as Settings)
 
-		const svgDocument = documentToSVG(document, {
-			captureArea,
-			keepLinks: settings.keepLinks,
-		})
+    let svgDocument = documentToSVG(document, {
+      captureArea: captureRect,
+      keepLinks: settings.keepLinks
+    })
 
-		let svgString = new XMLSerializer().serializeToString(svgDocument)
+    if (settings.inlineResources) {
+      await inlineResources(svgDocument as unknown as SVGSVGElement)
+    }
 
-		if (settings.inlineResources) {
-			console.log('Inlining resources')
-			// Do post-processing in the background page
-			svgString = await chrome.runtime.sendMessage({
-				method: 'postProcessSVG',
-				payload: svgString,
-			}) as string
-		}
+    let svgString = new XMLSerializer().serializeToString(svgDocument)
 
-		if (settings.minifySvg) {
-			console.log('Minifying')
-			svgString = await minifySvg(svgString)
-		}
+    if (settings.minifySvg) {
+      svgString = await minifySvg(svgString)
+    } else if (settings.prettyPrintSvg) {
+      svgString = formatXML(svgString)
+    }
 
-		if (settings.prettyPrintSvg && !settings.minifySvg) {
-			console.log('Pretty-printing SVG')
-			svgString = formatXML(svgString)
-		}
+    const blob = new Blob([svgString], { type: "image/svg+xml" })
+    console.log("SVG size:", prettyBytes(blob.size))
 
-		const blob = new Blob([svgString], { type: 'image/svg+xml' })
-		console.log('SVG size after minification:', prettyBytes(blob.size))
-		if (settings.target === 'download') {
-			console.log('Downloading')
-			saveAs(blob, `${document.title.replace(/["'/]/g, '')} Screenshot.svg`)
-		} else if (settings.target === 'clipboard') {
-			console.log('Copying to clipboard')
-			await navigator.clipboard.writeText(svgString)
-			// const plainTextBlob = new Blob([svgString], { type: 'text/plain' })
-			// Copying image/svg+xml is not yet supported in Chrome and crashes the tab
-			// await navigator.clipboard.write([
-			// 	new ClipboardItem({
-			// 		[blob.type]: blob,
-			// 		'text/plain': plainTextBlob,
-			// 	}),
-			// ])
-		} else if (settings.target === 'tab') {
-			console.log('Opening in new tab')
-			const url = URL.createObjectURL(blob)
-			window.open(url, '_blank', 'noopener')
-		} else {
-			throw new Error(`Unexpected SVG target ${String(settings.target)}`)
-		}
-	} finally {
-		document.documentElement.style.cursor = ''
-	}
+    switch (settings.target) {
+      case "download":
+        saveAs(blob, `${sanitizeFilename(document.title)}.svg`)
+        break
+      case "clipboard":
+        await showCopyConfirmation(svgString)
+        break
+      case "tab":
+        window.open(URL.createObjectURL(blob), "_blank", "noopener")
+        break
+      default:
+        throw new Error(`Unexpected target: ${settings.target}`)
+    }
+  } finally {
+    document.documentElement.style.cursor = ""
+    await chrome.runtime.sendMessage({ method: "finished" })
+  }
 }
 
-/**
- * Creates a UI to let the user select the capture area and returns the result.
- */
-async function letUserSelectCaptureArea(): Promise<DOMRectReadOnly> {
-	const { clientWidth, clientHeight } = document.documentElement
+async function selectCaptureArea(): Promise<DOMRect> {
+  const { clientWidth, clientHeight } = document.documentElement
+  const svg = document.createElementNS(svgNamespace, "svg")
+  svg.style.cssText = `
+    position:fixed; top:0; left:0; width:${clientWidth}px; height:${clientHeight}px;
+    cursor:crosshair; z-index:99999999;
+  `
+  svg.setAttribute("viewBox", `0 0 ${clientWidth} ${clientHeight}`)
 
-	const svgElement = document.createElementNS(svgNamespace, 'svg')
-	svgElement.id = 'svg-screenshot-selector'
-	svgElement.setAttribute('viewBox', `0 0 ${clientWidth} ${clientHeight}`)
-	svgElement.style.position = 'fixed'
-	svgElement.style.top = '0px'
-	svgElement.style.left = '0px'
-	svgElement.style.width = `${clientWidth}px`
-	svgElement.style.height = `${clientHeight}px`
-	svgElement.style.cursor = 'crosshair'
-	svgElement.style.zIndex = '99999999'
+  const mask = document.createElementNS(svgNamespace, "mask")
+  mask.id = "svg-screenshot-cutout"
+  const bg = document.createElementNS(svgNamespace, "rect")
+  bg.setAttribute("fill", "white")
+  bg.setAttribute("width", clientWidth.toString())
+  bg.setAttribute("height", clientHeight.toString())
+  mask.append(bg)
 
-	const backdrop = document.createElementNS(svgNamespace, 'rect')
-	backdrop.setAttribute('x', '0')
-	backdrop.setAttribute('y', '0')
-	backdrop.setAttribute('width', clientWidth.toString())
-	backdrop.setAttribute('height', clientHeight.toString())
-	backdrop.setAttribute('fill', 'rgba(0, 0, 0, 0.5)')
-	backdrop.setAttribute('mask', 'url(#svg-screenshot-cutout)')
-	svgElement.append(backdrop)
+  const cutout = document.createElementNS(svgNamespace, "rect")
+  cutout.setAttribute("fill", "black")
+  mask.append(cutout)
 
-	const mask = document.createElementNS(svgNamespace, 'mask')
-	svgElement.prepend(mask)
-	mask.id = 'svg-screenshot-cutout'
+  svg.appendChild(mask)
 
-	const maskBackground = document.createElementNS(svgNamespace, 'rect')
-	maskBackground.setAttribute('fill', 'white')
-	maskBackground.setAttribute('x', '0')
-	maskBackground.setAttribute('y', '0')
-	maskBackground.setAttribute('width', clientWidth.toString())
-	maskBackground.setAttribute('height', clientHeight.toString())
-	mask.append(maskBackground)
+  const backdrop = document.createElementNS(svgNamespace, "rect")
+  backdrop.setAttribute("fill", "rgba(0,0,0,0.5)")
+  backdrop.setAttribute("width", clientWidth.toString())
+  backdrop.setAttribute("height", clientHeight.toString())
+  backdrop.setAttribute("mask", `url(#${mask.id})`)
+  svg.appendChild(backdrop)
 
-	const maskCutout = document.createElementNS(svgNamespace, 'rect')
-	maskCutout.setAttribute('fill', 'black')
-	mask.append(maskCutout)
+  document.body.appendChild(svg)
 
-	let captureArea: DOMRectReadOnly
-	try {
-		await new Promise<void>((resolve, reject) => {
-			window.addEventListener('keyup', (event: KeyboardEvent) => {
-				if (event.key === 'Escape') {
-					reject(new AbortError('Aborted with Escape'))
-				}
-			})
-			svgElement.addEventListener('mousedown', (event: MouseEvent) => {
-				event.preventDefault()
-				const { clientX: startX, clientY: startY } = event
-				svgElement.addEventListener('mousemove', (event: MouseEvent) => {
-					event.preventDefault()
-					const positionX = Math.min(startX, event.clientX)
-					const positionY = Math.min(startY, event.clientY)
-					maskCutout.setAttribute('x', positionX.toString())
-					maskCutout.setAttribute('y', positionY.toString())
-					maskCutout.setAttribute('width', Math.abs(event.clientX - startX).toString())
-					maskCutout.setAttribute('height', Math.abs(event.clientY - startY).toString())
-				})
-				svgElement.addEventListener(
-					'mouseup',
-					(event: MouseEvent) => {
-						event.preventDefault()
-						resolve()
-					},
-					{ once: true }
-				)
-			})
-			document.body.append(svgElement)
-		})
-		// Note: Need to build the DOMRect from the properties,
-		// getBoundingClientRect() returns collapsed rectangle in Firefox
-		captureArea = new DOMRectReadOnly(
-			maskCutout.x.baseVal.value,
-			maskCutout.y.baseVal.value,
-			maskCutout.width.baseVal.value,
-			maskCutout.height.baseVal.value
-		)
-	} finally {
-		svgElement.remove()
-	}
+  return new Promise<DOMRect>((resolve, reject) => {
+    const onKey = (e: KeyboardEvent) =>
+      e.key === "Escape" && reject(new AbortError("Aborted"))
+    window.addEventListener("keyup", onKey, { once: true })
 
-	return captureArea
+    const onMouseDown = (start: MouseEvent) => {
+      start.preventDefault()
+
+      const onMove = (e: MouseEvent) => {
+        const x = Math.min(start.clientX, e.clientX)
+        const y = Math.min(start.clientY, e.clientY)
+        const w = Math.abs(e.clientX - start.clientX)
+        const h = Math.abs(e.clientY - start.clientY)
+        cutout.setAttribute("x", x.toString())
+        cutout.setAttribute("y", y.toString())
+        cutout.setAttribute("width", w.toString())
+        cutout.setAttribute("height", h.toString())
+      }
+
+      const onMouseUp = () => {
+        svg.removeEventListener("mousemove", onMove)
+        svg.removeEventListener("mouseup", onMouseUp)
+        const rect = new DOMRect(
+          cutout.x.baseVal.value,
+          cutout.y.baseVal.value,
+          cutout.width.baseVal.value,
+          cutout.height.baseVal.value
+        )
+        svg.remove()
+        resolve(rect)
+      }
+
+      svg.addEventListener("mousemove", onMove)
+      svg.addEventListener("mouseup", onMouseUp, { once: true })
+    }
+
+    svg.addEventListener("mousedown", onMouseDown, { once: true })
+  })
 }
 
-// eslint-disable-next-line @typescript-eslint/no-floating-promises
-main()
+function sanitizeFilename(name: string): string {
+  return name.replace(/["'/\\:?<>|]/g, "")
+}
+
+async function showCopyConfirmation(svgString: string): Promise<void> {
+  const notification = document.createElement("div")
+  notification.style.cssText = `
+    position: fixed;
+    top: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: #ffffff;
+    color: #1a1a1a;
+    padding: 12px 20px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    z-index: 99999999;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    font-size: 14px;
+    font-weight: 500;
+  `
+
+  const text = document.createElement("span")
+  text.textContent = "SVG 生成成功"
+
+  const button = document.createElement("button")
+  button.textContent = "复制"
+  button.style.cssText = `
+    padding: 8px 16px;
+    background: #4f46e5;
+    color: white;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 500;
+    transition: all 0.2s ease;
+  `
+  
+  button.onclick = async () => {
+    await navigator.clipboard.writeText(svgString)
+    text.textContent = "已复制到剪贴板"
+    button.remove()
+    setTimeout(() => notification.remove(), 1500)
+  }
+
+  notification.append(text, button)
+  document.body.appendChild(notification)
+}
