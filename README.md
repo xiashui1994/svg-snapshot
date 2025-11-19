@@ -7,15 +7,18 @@ A browser extension for capturing web pages as scalable SVG images. Unlike tradi
 ## Features
 
 ### Capture Modes
+
 - **Capture Viewport** - Capture the entire visible area of the current tab
 - **Capture Area** - Select a specific region to capture
 
 ### Output Options
+
 - **Download SVG** - Save the captured SVG file to your computer
 - **Open in new tab** - Preview the SVG in a new browser tab
 - **Copy to clipboard** - Copy SVG code directly to clipboard
 
 ### Processing Options
+
 - **Inline resources** - Embed external resources (images, fonts) into the SVG
 - **Keep links** - Preserve hyperlinks in the captured SVG
 - **Minify SVG** - Optimize file size by removing unnecessary data
@@ -24,6 +27,7 @@ A browser extension for capturing web pages as scalable SVG images. Unlike tradi
 ## Installation
 
 ### From Source
+
 1. Clone this repository
 2. Install dependencies:
    ```bash
