@@ -1,33 +1,69 @@
-This is a [Plasmo extension](https://docs.plasmo.com/) project bootstrapped with [`plasmo init`](https://www.npmjs.com/package/plasmo).
+# SVG Snapshot
 
-## Getting Started
+English | [中文](./README.zh-CN.md)
 
-First, run the development server:
+A browser extension for capturing web pages as scalable SVG images. Unlike traditional screenshots, SVG snapshots remain crisp at any zoom level and can be easily edited in vector graphics software.
+
+## Features
+
+### Capture Modes
+- **Capture Viewport** - Capture the entire visible area of the current tab
+- **Capture Area** - Select a specific region to capture
+
+### Output Options
+- **Download SVG** - Save the captured SVG file to your computer
+- **Open in new tab** - Preview the SVG in a new browser tab
+- **Copy to clipboard** - Copy SVG code directly to clipboard
+
+### Processing Options
+- **Inline resources** - Embed external resources (images, fonts) into the SVG
+- **Keep links** - Preserve hyperlinks in the captured SVG
+- **Minify SVG** - Optimize file size by removing unnecessary data
+- **Pretty-print** - Format SVG code for better readability
+
+## Installation
+
+### From Source
+1. Clone this repository
+2. Install dependencies:
+   ```bash
+   pnpm install
+   ```
+3. Build the extension:
+   ```bash
+   pnpm build
+   ```
+4. Load the extension in Chrome:
+   - Navigate to `chrome://extensions/`
+   - Enable "Developer mode"
+   - Click "Load unpacked"
+   - Select the `build/chrome-mv3-prod` directory
+
+## Usage
+
+1. Click the SVG Snapshot icon in your browser toolbar
+2. Choose your capture mode (Viewport or Area)
+3. Configure output and processing options as needed
+4. Click to capture
+
+## Development
+
+Start the development server:
 
 ```bash
 pnpm dev
-# or
-npm run dev
 ```
 
-Open your browser and load the appropriate development build. For example, if you are developing for the chrome browser, using manifest v3, use: `build/chrome-mv3-dev`.
+Load the development build from `build/chrome-mv3-dev` in Chrome.
 
-You can start editing the popup by modifying `popup.tsx`. It should auto-update as you make changes. To add an options page, simply add a `options.tsx` file to the root of the project, with a react component default exported. Likewise to add a content page, add a `content.ts` file to the root of the project, importing some module and do some logic, then reload the extension on your browser.
+## Tech Stack
 
-For further guidance, [visit our Documentation](https://docs.plasmo.com/)
+- [Plasmo](https://docs.plasmo.com/) - Browser extension framework
+- [Vue 3](https://vuejs.org/) - UI framework
+- [dom2svg](https://www.npmjs.com/package/dom2svg) - DOM to SVG conversion
+- [SVGO](https://github.com/svg/svgo) - SVG optimization
+- [TypeScript](https://www.typescriptlang.org/) - Type safety
 
-## Making production build
+## License
 
-Run the following:
-
-```bash
-pnpm build
-# or
-npm run build
-```
-
-This should create a production bundle for your extension, ready to be zipped and published to the stores.
-
-## Submit to the webstores
-
-The easiest way to deploy your Plasmo extension is to use the built-in [bpp](https://bpp.browser.market) GitHub action. Prior to using this action however, make sure to build your extension and upload the first version to the store to establish the basic credentials. Then, simply follow [this setup instruction](https://docs.plasmo.com/framework/workflows/submit) and you should be on your way for automated submission!
+MIT

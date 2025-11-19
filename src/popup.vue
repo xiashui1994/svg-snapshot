@@ -1,17 +1,13 @@
 <template>
   <div class="container">
-    <div class="header">
-      <div class="logo-placeholder">📸</div>
-      <h1>SVG Snapshot</h1>
-    </div>
-
     <div class="capture-section">
       <button
         class="capture-btn primary"
         @click="createCapture('captureViewport')">
         <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
           <path
-            d="M2 4.5A2.5 2.5 0 014.5 2h7A2.5 2.5 0 0114 4.5v7a2.5 2.5 0 01-2.5 2.5h-7A2.5 2.5 0 012 11.5v-7z" />
+            d="M2 3.5A1.5 1.5 0 013.5 2h9A1.5 1.5 0 0114 3.5v9a1.5 1.5 0 01-1.5 1.5h-9A1.5 1.5 0 012 12.5v-9zM3.5 3a.5.5 0 00-.5.5v9a.5.5 0 00.5.5h9a.5.5 0 00.5-.5v-9a.5.5 0 00-.5-.5h-9z" />
+          <path d="M5 5h6v6H5V5z" opacity="0.4" />
         </svg>
         Capture Viewport
       </button>
@@ -19,7 +15,12 @@
         class="capture-btn secondary"
         @click="createCapture('captureArea')">
         <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
-          <path d="M4 1h8v2H4V1zm0 4h2v8H4V5zm4 0h2v8H8V5zm4 0h2v8h-2V5z" />
+          <path
+            d="M2 1h2v2H2V1zm10 0h2v2h-2V1zM2 13h2v2H2v-2zm10 0h2v2h-2v-2z" />
+          <path
+            d="M1 4h2v8H1V4zm12 0h2v8h-2V4zM4 1h8v2H4V1zm0 12h8v2H4v-2z"
+            opacity="0.6" />
+          <path d="M5 5h6v6H5V5z" opacity="0.25" />
         </svg>
         Capture Area
       </button>
@@ -38,7 +39,10 @@
             v-model="settings.target" />
           <span class="option-content">
             <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
-              <path d="M8 1l3 3h-2v4h-2V4H5l3-3zm-6 9v2h14v-2H2z" />
+              <path
+                d="M8 1a.5.5 0 01.5.5v7.793l2.146-2.147a.5.5 0 01.708.708l-3 3a.5.5 0 01-.708 0l-3-3a.5.5 0 11.708-.708L7.5 9.293V1.5A.5.5 0 018 1z" />
+              <path
+                d="M2 13.5a.5.5 0 01.5-.5h11a.5.5 0 010 1h-11a.5.5 0 01-.5-.5z" />
             </svg>
             Download SVG
           </span>
@@ -52,7 +56,9 @@
           <span class="option-content">
             <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
               <path
-                d="M2 2.5A2.5 2.5 0 014.5 0h7A2.5 2.5 0 0114 2.5v11a.5.5 0 01-.5.5h-11a.5.5 0 01-.5-.5v-11z" />
+                d="M2 2.5A1.5 1.5 0 013.5 1h4a.5.5 0 010 1h-4a.5.5 0 00-.5.5v9a.5.5 0 00.5.5h9a.5.5 0 00.5-.5v-4a.5.5 0 011 0v4A1.5 1.5 0 0112.5 13h-9A1.5 1.5 0 012 11.5v-9z" />
+              <path
+                d="M10.5 1a.5.5 0 000 1h2.793l-4.147 4.146a.5.5 0 00.708.708L14 2.707V5.5a.5.5 0 001 0v-4a.5.5 0 00-.5-.5h-4z" />
             </svg>
             Open in new tab
           </span>
@@ -66,7 +72,10 @@
           <span class="option-content">
             <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
               <path
-                d="M6 2h4v12H6V2zm2 0h4v1H8V2zm0 4h4v1H8V6zm0 4h4v1H8v-1z" />
+                d="M4 2a2 2 0 012-2h4a2 2 0 012 2h1a1 1 0 011 1v10a1 1 0 01-1 1H3a1 1 0 01-1-1V3a1 1 0 011-1h1zm2-1a1 1 0 00-1 1h6a1 1 0 00-1-1H6zM3 3v10h10V3H3z" />
+              <path
+                d="M5 6h6v1H5V6zm0 2h6v1H5V8zm0 2h4v1H5v-1z"
+                opacity="0.6" />
             </svg>
             Copy to clipboard
           </span>
@@ -177,8 +186,8 @@ const createCapture = async (area: CaptureArea): Promise<void> => {
 }
 
 :host {
-  width: 420px;
-  min-height: 520px;
+  width: 320px;
+  min-height: 480px;
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
     "Helvetica Neue", Arial, sans-serif;
   color-scheme: light dark;
@@ -187,17 +196,17 @@ const createCapture = async (area: CaptureArea): Promise<void> => {
 
 html,
 body {
-  width: 420px;
+  width: 320px;
   margin: 0;
   padding: 0;
 }
 
 .container {
-  padding: 16px;
+  padding: 14px;
   background: #ffffff;
   color: #1a1a1a;
-  max-width: 420px;
-  width: 420px;
+  max-width: 320px;
+  width: 320px;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -205,36 +214,6 @@ body {
     background: #1e1e1e;
     color: #e0e0e0;
   }
-}
-
-.header {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  margin-bottom: 20px;
-  padding-bottom: 12px;
-  border-bottom: 1px solid rgba(0, 0, 0, 0.1);
-}
-
-@media (prefers-color-scheme: dark) {
-  .header {
-    border-bottom-color: rgba(255, 255, 255, 0.1);
-  }
-}
-
-.logo-placeholder {
-  font-size: 24px;
-  width: 32px;
-  height: 32px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.header h1 {
-  font-size: 18px;
-  font-weight: 600;
-  margin: 0;
 }
 
 .capture-section {

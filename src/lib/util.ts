@@ -13,9 +13,6 @@ export const logErrors =
     func(...args).catch(console.error)
   }
 
-/**
- * Returns a Promise that resolves once the given event emits.
- */
 export const once = <T extends any[]>(
   emitter: any,
   filter: (...args: T) => boolean = () => true

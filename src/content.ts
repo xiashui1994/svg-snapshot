@@ -194,7 +194,7 @@ async function showCopyConfirmation(svgString: string): Promise<void> {
     font-weight: 500;
     transition: all 0.2s ease;
   `
-  
+
   button.onclick = async () => {
     await navigator.clipboard.writeText(svgString)
     text.textContent = "已复制到剪贴板"

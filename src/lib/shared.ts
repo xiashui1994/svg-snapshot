@@ -9,9 +9,6 @@ export const SETTINGS_KEYS: readonly (keyof Settings)[] = [
   "target"
 ]
 
-/**
- * The user settings stored in `browser.storage.sync`
- */
 export interface Settings {
   minifySvg?: boolean
   inlineResources?: boolean

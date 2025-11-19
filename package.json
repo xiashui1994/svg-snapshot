@@ -1,7 +1,7 @@
 {
   "name": "svg-snapshot",
   "displayName": "Svg snapshot",
-  "version": "0.0.1",
+  "version": "1.0.0",
   "description": "A browser extension for simple, scalable SVG screenshots.",
   "author": "xiashui",
   "scripts": {
