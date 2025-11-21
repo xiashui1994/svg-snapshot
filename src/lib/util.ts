@@ -46,11 +46,22 @@ export function assert(condition: any, message: string): asserts condition {
   }
 }
 
-export const insertCrossOrigin = (): void => {
-  const links = document.querySelectorAll("link[rel=stylesheet]")
-  for (const link of links) {
-    const newLink = link.cloneNode() as HTMLLinkElement
-    newLink.setAttribute("crossorigin", "anonymous")
-    link.replaceWith(newLink)
+export async function fetchBase64(fetch: Response): Promise<string> {
+  const arrayBuffer = await fetch.arrayBuffer()
+  const bytes = new Uint8Array(arrayBuffer)
+  let binary = ""
+  const chunkSize = 0x8000
+  for (let i = 0; i < bytes.length; i += chunkSize) {
+    const chunk = bytes.subarray(i, i + chunkSize)
+    binary += String.fromCharCode.apply(null, chunk)
   }
+  return btoa(binary)
+}
+
+export function base64ToBlob(base64: string, type: string): Blob {
+  const binary = atob(base64)
+  const len = binary.length
+  const bytes = new Uint8Array(len)
+  for (let i = 0; i < len; i++) bytes[i] = binary.charCodeAt(i)
+  return new Blob([bytes], { type })
 }

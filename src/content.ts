@@ -9,12 +9,29 @@ import { minifySvg } from "./lib/minify"
 import { applyDefaults, SETTINGS_KEYS } from "./lib/shared"
 import type { CaptureArea, Settings } from "./lib/shared"
 import { getStorage } from "./lib/storage"
-import { AbortError, insertCrossOrigin, svgNamespace } from "./lib/util"
+import { AbortError, svgNamespace, base64ToBlob } from "./lib/util"
 
 export const config: PlasmoCSConfig = {
   matches: ["<all_urls>"],
   run_at: "document_idle",
   all_frames: false
+}
+
+window.fetch = async (url, options = {}) => {
+  const res = await chrome.runtime.sendMessage({
+    method: "fetch",
+    url,
+    options
+  })
+
+  if (res.error) throw new Error(res.error)
+
+  const blob = base64ToBlob(res.base64, res.type)
+  return new Response(blob, {
+    status: res.status,
+    statusText: res.statusText,
+    headers: new Headers(res.headers)
+  })
 }
 
 chrome.runtime.onMessage.addListener((message, _, sendResponse) => {
@@ -27,7 +44,6 @@ chrome.runtime.onMessage.addListener((message, _, sendResponse) => {
 })
 
 async function capture(area: CaptureArea): Promise<void> {
-  insertCrossOrigin()
   await chrome.runtime.sendMessage({ method: "started" })
 
   try {
