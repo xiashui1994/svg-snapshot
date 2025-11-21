@@ -1,4 +1,4 @@
-import { fetchBase64 } from './lib/util'
+import { fetchBase64 } from "./lib/util"
 
 chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   switch (msg.method) {

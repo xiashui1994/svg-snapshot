@@ -9,7 +9,7 @@ import { minifySvg } from "./lib/minify"
 import { applyDefaults, SETTINGS_KEYS } from "./lib/shared"
 import type { CaptureArea, Settings } from "./lib/shared"
 import { getStorage } from "./lib/storage"
-import { AbortError, svgNamespace, base64ToBlob } from "./lib/util"
+import { AbortError, base64ToBlob, svgNamespace } from "./lib/util"
 
 export const config: PlasmoCSConfig = {
   matches: ["<all_urls>"],
